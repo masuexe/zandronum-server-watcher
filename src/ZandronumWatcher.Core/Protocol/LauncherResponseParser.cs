@@ -228,6 +228,7 @@ public static class LauncherResponseParser
             GameModeName = string.IsNullOrEmpty(gameModeName) ? gameMode.ToDisplayName() : gameModeName,
             MaxClients = maxClients,
             MaxPlayers = maxPlayers,
+            NumPlayers = numPlayers,
             Pwads = pwads,
             Players = players,
             RequiresPassword = requiresPassword,

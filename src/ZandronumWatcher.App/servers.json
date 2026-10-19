@@ -3,5 +3,12 @@
   "servers": [
     "78.36.200.207:10666",
     "78.82.95.98:10666"
-  ]
+  ],
+  "notifications": {
+    "onServerBecomesPopulated": true,
+    "onHumanJoins": true,
+    "onServerBecomesEmpty": false,
+    "onServerGoesOffline": false,
+    "onServerComesOnline": false
+  }
 }

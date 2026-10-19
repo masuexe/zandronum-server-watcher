@@ -2,13 +2,19 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- The Windows 10 TFM is required for the WinRT toast APIs; plain net10.0-windows
+         cannot resolve them. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <UseWPF>true</UseWPF>
     <RootNamespace>ZandronumWatcher.App</RootNamespace>
     <AssemblyName>ZandronumWatcher</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon />
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ZandronumWatcher.Core\ZandronumWatcher.Core.csproj" />

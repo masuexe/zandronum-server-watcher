@@ -34,6 +34,10 @@ packages/
 servers.local.json
 *.local.json
 
+# Python (the tools/ and _ref/ scripts)
+__pycache__/
+*.py[cod]
+
 # OS noise
 Thumbs.db
 Desktop.ini

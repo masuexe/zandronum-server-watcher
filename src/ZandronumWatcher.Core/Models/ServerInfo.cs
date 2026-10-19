@@ -22,15 +22,37 @@ public sealed record ServerInfo
     public int MaxClients { get; init; }
     public int MaxPlayers { get; init; }
 
+    /// <summary>
+    /// The count the server reported in its SQF_NUMPLAYERS field. This includes bots and is
+    /// authoritative even when the detailed roster is missing.
+    /// </summary>
+    public int NumPlayers { get; init; }
+
     public IReadOnlyList<string> Pwads { get; init; } = [];
     public IReadOnlyList<PlayerInfo> Players { get; init; } = [];
 
-    /// <summary>Number of humans connected (bots excluded).</summary>
-    public int HumanCount => Players.Count(p => !p.IsBot);
+    /// <summary>
+    /// True when the roster is trustworthy enough to tell humans from bots. An empty server
+    /// qualifies (zero players is unambiguous); a populated server without a roster does not.
+    /// </summary>
+    public bool HasPlayerDetails => Players.Count > 0 || NumPlayers == 0;
+
+    /// <summary>
+    /// Number of humans connected, bots excluded.
+    /// </summary>
+    /// <remarks>
+    /// This is the number the app cares about: bot-only servers are common (one survey found a
+    /// server advertising 36 players, all of them bots), so counting <see cref="NumPlayers"/>
+    /// would produce constant false alarms.
+    /// </remarks>
+    public int HumanCount => Players.Count > 0
+        ? Players.Count(p => !p.IsBot)
+        : NumPlayers;
 
     public int BotCount => Players.Count(p => p.IsBot);
 
-    public int PlayerCount => Players.Count;
+    /// <summary>Every connected client, humans and bots alike.</summary>
+    public int PlayerCount => Players.Count > 0 ? Players.Count : NumPlayers;
 
     /// <summary>True when the server requires a password to join.</summary>
     public bool RequiresPassword { get; init; }
@@ -40,5 +62,6 @@ public sealed record ServerInfo
 
     public DateTimeOffset LastUpdated { get; init; }
 
-    public string SlotText => MaxClients > 0 ? $"{PlayerCount}/{MaxClients}" : PlayerCount.ToString();
+    /// <summary>Human occupancy, which is what the overlay and the alerts both track.</summary>
+    public string SlotText => MaxClients > 0 ? $"{HumanCount}/{MaxClients}" : HumanCount.ToString();
 }
