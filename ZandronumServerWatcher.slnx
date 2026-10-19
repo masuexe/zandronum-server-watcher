@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ZandronumWatcher.App/ZandronumWatcher.App.csproj" />
+    <Project Path="src/ZandronumWatcher.Core/ZandronumWatcher.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ZandronumWatcher.Core.Tests/ZandronumWatcher.Core.Tests.csproj" />
+  </Folder>
+</Solution>

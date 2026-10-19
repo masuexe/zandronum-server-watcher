@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>ZandronumWatcher.App</RootNamespace>
+    <AssemblyName>ZandronumWatcher</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ZandronumWatcher.Core\ZandronumWatcher.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="servers.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
