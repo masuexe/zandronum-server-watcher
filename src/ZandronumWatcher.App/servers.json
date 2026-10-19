@@ -2,12 +2,18 @@
   "pollSeconds": 15,
   "servers": [
     "78.36.200.207:10666",
-    "78.82.95.98:10666"
+    {
+      "address": "78.82.95.98:10666",
+      "alerts": {
+        "onHumanJoins": false
+      }
+    }
   ],
   "notifications": {
     "onServerBecomesPopulated": true,
     "onHumanJoins": true,
     "onServerBecomesEmpty": false,
+    "onHumanLeaves": false,
     "onServerGoesOffline": false,
     "onServerComesOnline": false
   }

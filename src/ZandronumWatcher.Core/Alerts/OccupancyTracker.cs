@@ -32,6 +32,48 @@ public sealed class OccupancyAlertOptions
     /// stream of "went offline" / "came online" pairs.
     /// </remarks>
     public int OfflineThreshold { get; set; } = 3;
+
+    /// <summary>Per-server overrides, keyed by endpoint.</summary>
+    public Dictionary<ServerEndpoint, ServerAlertOverride> PerServer { get; } = [];
+
+    /// <summary>Registers overrides for one server, replacing any previous entry.</summary>
+    public void OverrideFor(ServerEndpoint endpoint, ServerAlertOverride overrides) =>
+        PerServer[endpoint] = overrides;
+
+    /// <summary>
+    /// Resolves whether a transition should alert, preferring the server's own override.
+    /// </summary>
+    public bool IsEnabled(ServerEndpoint endpoint, OccupancyChangeKind kind)
+    {
+        var global = kind switch
+        {
+            OccupancyChangeKind.BecamePopulated => AlertOnBecamePopulated,
+            OccupancyChangeKind.BecameEmpty => AlertOnBecameEmpty,
+            OccupancyChangeKind.HumanJoined => AlertOnHumanJoined,
+            OccupancyChangeKind.HumanLeft => AlertOnHumanLeft,
+            OccupancyChangeKind.WentOffline => AlertOnWentOffline,
+            OccupancyChangeKind.CameOnline => AlertOnCameOnline,
+            _ => false,
+        };
+
+        if (!PerServer.TryGetValue(endpoint, out var overrides) || overrides.IsEmpty)
+        {
+            return global;
+        }
+
+        var specific = kind switch
+        {
+            OccupancyChangeKind.BecamePopulated => overrides.AlertOnBecamePopulated,
+            OccupancyChangeKind.BecameEmpty => overrides.AlertOnBecameEmpty,
+            OccupancyChangeKind.HumanJoined => overrides.AlertOnHumanJoined,
+            OccupancyChangeKind.HumanLeft => overrides.AlertOnHumanLeft,
+            OccupancyChangeKind.WentOffline => overrides.AlertOnWentOffline,
+            OccupancyChangeKind.CameOnline => overrides.AlertOnCameOnline,
+            _ => null,
+        };
+
+        return specific ?? global;
+    }
 }
 
 /// <summary>
@@ -96,7 +138,7 @@ public sealed class OccupancyTracker
 
         if (previous.IsOnline != current.IsOnline)
         {
-            if (!current.IsOnline && _options.AlertOnWentOffline)
+            if (!current.IsOnline && _options.IsEnabled(endpoint, OccupancyChangeKind.WentOffline))
             {
                 changes.Add(new OccupancyChange
                 {
@@ -107,7 +149,7 @@ public sealed class OccupancyTracker
                     CurrentHumans = 0,
                 });
             }
-            else if (current.IsOnline && _options.AlertOnCameOnline)
+            else if (current.IsOnline && _options.IsEnabled(endpoint, OccupancyChangeKind.CameOnline))
             {
                 changes.Add(new OccupancyChange
                 {
@@ -146,14 +188,7 @@ public sealed class OccupancyTracker
             _ => OccupancyChangeKind.HumanLeft,
         };
 
-        var enabled = kind switch
-        {
-            OccupancyChangeKind.BecamePopulated => _options.AlertOnBecamePopulated,
-            OccupancyChangeKind.BecameEmpty => _options.AlertOnBecameEmpty,
-            OccupancyChangeKind.HumanJoined => _options.AlertOnHumanJoined,
-            OccupancyChangeKind.HumanLeft => _options.AlertOnHumanLeft,
-            _ => false,
-        };
+        var enabled = _options.IsEnabled(endpoint, kind);
 
         if (enabled)
         {

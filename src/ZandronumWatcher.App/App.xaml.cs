@@ -1,8 +1,7 @@
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
-using ZandronumWatcher.App.Services;
+using ZandronumWatcher.Core.Configuration;
 
 namespace ZandronumWatcher.App;
 
@@ -14,12 +13,6 @@ public partial class App : Application
 
     /// <summary>Set when the process runs without a window.</summary>
     public static bool IsHeadless { get; private set; }
-
-    [DllImport("kernel32.dll")]
-    private static extern bool AttachConsole(uint processId);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool AllocConsole();
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -42,6 +35,22 @@ public partial class App : Application
         // Windows will deliver toast notifications.
         Notifications.AppRegistration.Register();
 
+        if (TryGetPinArguments(e.Args, out var pinAddresses, out var unpin))
+        {
+            ConsoleHost.Attach();
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var configPath = GetConfigPath(e.Args) ?? WatchConfig.DefaultPath;
+            var code = PinRunner.Run(configPath, pinAddresses, unpin);
+            Shutdown(code);
+            return;
+        }
+
+        if (e.Args.Any(a => a.Equals("--list", StringComparison.OrdinalIgnoreCase)))
+        {
+            RunList(e.Args);
+            return;
+        }
+
         if (IsHeadless)
         {
             RunHeadless(e.Args);
@@ -57,21 +66,56 @@ public partial class App : Application
         window.Show();
     }
 
+    private static bool TryGetPinArguments(string[] args, out List<string> addresses, out bool unpin)
+    {
+        addresses = [];
+        unpin = args.Any(a => a.Equals("--unpin", StringComparison.OrdinalIgnoreCase));
+        var flag = unpin ? "--unpin" : "--pin";
+
+        if (!args.Any(a => a.Equals(flag, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        addresses.AddRange(args
+            .SkipWhile(a => !a.Equals(flag, StringComparison.OrdinalIgnoreCase))
+            .Skip(1)
+            .TakeWhile(a => !a.StartsWith("--", StringComparison.Ordinal)));
+
+        return addresses.Count > 0;
+    }
+
+    private static string? GetConfigPath(string[] args) =>
+        args.SkipWhile(a => !a.Equals("--config", StringComparison.OrdinalIgnoreCase))
+            .Skip(1)
+            .FirstOrDefault();
+
+    private void RunList(string[] args)
+    {
+        ConsoleHost.Attach();
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        var master = args
+            .SkipWhile(a => !a.Equals("--master", StringComparison.OrdinalIgnoreCase))
+            .Skip(1)
+            .FirstOrDefault();
+
+        var showEmpty = args.Any(a => a.Equals("--all", StringComparison.OrdinalIgnoreCase));
+        // Run on the thread pool: blocking the dispatcher thread would deadlock the awaits
+        // inside the runner.
+        var exitCode = Task.Run(() => DiscoverRunner.RunAsync(master, showEmpty)).GetAwaiter().GetResult();
+        Shutdown(exitCode);
+    }
+
     private void RunHeadless(string[] args)
     {
-        // A WinExe has no console of its own; borrow the parent's when started from a shell.
-        AttachConsole(0xFFFFFFFF);
+        ConsoleHost.Attach();
 
         // Without a window, OnMainWindowClose would shut the process down immediately.
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        var configPath = args
-            .SkipWhile(a => !a.Equals("--config", StringComparison.OrdinalIgnoreCase))
-            .Skip(1)
-            .FirstOrDefault();
-
-        var config = WatchConfig.Load(configPath);
-        var exitCode = HeadlessRunner.RunAsync(config).GetAwaiter().GetResult();
+        var config = WatchConfig.Load(GetConfigPath(args));
+        var exitCode = Task.Run(() => HeadlessRunner.RunAsync(config)).GetAwaiter().GetResult();
         Shutdown(exitCode);
     }
 

@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using ZandronumWatcher.App.Services;
+using ZandronumWatcher.Core.Configuration;
 using ZandronumWatcher.App.ViewModels;
 
 namespace ZandronumWatcher.App;

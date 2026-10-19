@@ -1,6 +1,6 @@
 using System.IO;
 using ZandronumWatcher.App.Notifications;
-using ZandronumWatcher.App.Services;
+using ZandronumWatcher.Core.Configuration;
 using ZandronumWatcher.Core.Alerts;
 using ZandronumWatcher.Core.Services;
 

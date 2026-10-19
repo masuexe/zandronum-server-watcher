@@ -19,11 +19,12 @@ so you stop refreshing a server browser waiting for a game to start.
 - ✅ Per-server launcher query with player roster
 - ✅ Human vs. bot counting
 - ✅ Occupancy alerts with offline debounce, delivered as toasts
+- ✅ Per-server alert overrides for pinned servers
+- ✅ `--list` to find reachable servers, `--pin` / `--unpin` to manage the list
 - ✅ Always-on-top transparent overlay, out of Alt+Tab
 - ✅ Headless mode writing alerts to a log file
-- ✅ 52 tests, including end-to-end UDP tests against a fake server
+- ✅ 65 tests, including end-to-end UDP tests against a fake server
 - ⬜ Tray icon and a settings UI
-- ⬜ Auto-discovery of servers from the master list
 
 ## Requirements
 
@@ -49,6 +50,25 @@ Publish:
 dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained false
 ```
 
+## Finding servers to pin
+
+You only watch the servers you pin — this is not a server browser. To see what is
+currently reachable and worth pinning:
+
+```powershell
+ZandronumWatcher.exe --list          # only servers with players
+ZandronumWatcher.exe --list --all    # include empty ones
+```
+
+Then pin what you want:
+
+```powershell
+ZandronumWatcher.exe --pin 148.72.141.8:10718 104.243.34.46:10703
+ZandronumWatcher.exe --unpin 104.243.34.46:10703
+```
+
+Both commands edit `servers.json` in place.
+
 ## Configuration
 
 `servers.json` next to the executable:
@@ -58,20 +78,30 @@ dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained f
   "pollSeconds": 15,
   "servers": [
     "78.36.200.207:10666",
-    "78.82.95.98:10666"
+    {
+      "address": "78.82.95.98:10666",
+      "alerts": { "onHumanJoins": false }
+    }
   ],
   "notifications": {
     "onServerBecomesPopulated": true,
     "onHumanJoins": true,
     "onServerBecomesEmpty": false,
+    "onHumanLeaves": false,
     "onServerGoesOffline": false,
     "onServerComesOnline": false
   }
 }
 ```
 
-The first two switches are the useful ones: `onServerBecomesPopulated` is the "0 → 1"
+A server may be a bare `"host:port"` string or an object with `alerts` overrides. The
+first two global switches are the useful ones: `onServerBecomesPopulated` is the "0 → 1"
 alert, and `onHumanJoins` covers "someone else showed up".
+
+**Per-server overrides matter once you pin more than a couple of servers.** A weekly game
+night wants every join; a busy public server would notify constantly. Override
+`onHumanJoins: false` on the noisy ones and leave the rest inheriting the global setting.
+Unset fields inherit; they are not treated as `false`.
 
 ## Why the code looks the way it does
 
@@ -106,6 +136,16 @@ refresh.
 addresses in `198.18.0.0/15`; connecting to a hard-coded literal IP bypasses the proxy
 and fails.
 
+**Per-server overrides beat one global switch.** Pinned servers are not interchangeable:
+one is a weekly game night where every join matters, another is a busy public server where
+only the first player is interesting. A single global setting forces the noisiest server to
+dictate the behaviour for all of them.
+
+**CLI modes must not block the dispatcher thread.** `--list` and `--headless` run through
+`Task.Run`. Blocking the WPF dispatcher on an async call deadlocks, because
+`Progress<T>`/continuations post back to that same thread — this showed up as a hang with
+no output at all.
+
 **Unpackaged apps need a Start Menu shortcut to show toasts.** Without a shortcut
 carrying an AppUserModelID, `ToastNotificationManager` reports success and silently
 drops the notification. `AppRegistration` creates that shortcut on startup.
@@ -127,7 +167,9 @@ src/
     Protocol/                Huffman codec, packet reader, response parsers
     Models/                  ServerInfo, PlayerInfo, ServerEndpoint, ...
     Alerts/                  OccupancyTracker, OccupancyChange, IAlertSink
-    Services/                ZandronumClient, ServerWatcher, OccupancyMonitor
+    Configuration/           WatchConfig (pinned list + per-server overrides)
+    Services/                ZandronumClient, ServerWatcher, OccupancyMonitor,
+                             ServerDirectory (--list support)
   ZandronumWatcher.App/      WPF overlay + toasts + headless host
 tests/
   ZandronumWatcher.Core.Tests/   xUnit, incl. a fake UDP server for end-to-end tests

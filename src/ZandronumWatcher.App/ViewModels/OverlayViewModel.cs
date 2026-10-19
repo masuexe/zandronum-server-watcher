@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using ZandronumWatcher.App.Notifications;
-using ZandronumWatcher.App.Services;
+using ZandronumWatcher.Core.Configuration;
 using ZandronumWatcher.Core.Alerts;
 using ZandronumWatcher.Core.Models;
 using ZandronumWatcher.Core.Services;
