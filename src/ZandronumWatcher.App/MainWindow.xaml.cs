@@ -71,6 +71,21 @@ public partial class MainWindow : Window
             : (System.Windows.Media.Brush)FindResource("TextMuted");
     }
 
+    private void OnAddServerClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new AddServerWindow
+        {
+            Owner = this,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+
+        // The overlay is WS_EX_NOACTIVATE, so it cannot hand focus to a dialog on its own.
+        dialog.ShowInTaskbar = true;
+        dialog.PinsChanged += (_, _) => _viewModel.ReloadFromDisk();
+
+        dialog.ShowDialog();
+    }
+
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
 
     private void RestorePosition()

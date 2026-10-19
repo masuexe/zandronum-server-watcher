@@ -20,10 +20,11 @@ so you stop refreshing a server browser waiting for a game to start.
 - ✅ Human vs. bot counting
 - ✅ Occupancy alerts with offline debounce, delivered as toasts
 - ✅ Per-server alert overrides for pinned servers
-- ✅ `--list` to find reachable servers, `--pin` / `--unpin` to manage the list
+- ✅ Add-server dialog with search over a cached master scan
+- ✅ `--list` / `--pin` / `--unpin` for the same thing from a shell
 - ✅ Always-on-top transparent overlay, out of Alt+Tab
 - ✅ Headless mode writing alerts to a log file
-- ✅ 65 tests, including end-to-end UDP tests against a fake server
+- ✅ 72 tests, including end-to-end UDP tests against a fake server
 - ⬜ Tray icon and a settings UI
 
 ## Requirements
@@ -50,24 +51,39 @@ Publish:
 dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained false
 ```
 
-## Finding servers to pin
+## Adding servers to watch
 
-You only watch the servers you pin — this is not a server browser. To see what is
-currently reachable and worth pinning:
+You only watch the servers you pin — this is not a server browser. Click the **＋** button
+in the overlay (or the "No servers pinned yet" prompt on first run) to open the add dialog:
+
+![Add server dialog](docs/add-server.png)
+
+It scans the public master server once, then lets you:
+
+- **Search** by server name, map, game mode or address — filtering is instant because it
+  runs against the cached scan
+- **Click ＋** on any row to pin it, **✓** to unpin. Changes are saved immediately
+- **Paste an address** if you already know it; the port defaults to 10666
+
+![Filtering by game mode](docs/add-server-search.png)
+
+Pinned servers sort to the top, then by how many humans are playing, so the servers worth
+joining surface first.
+
+The scan is cached in `servers.cache.json` next to the config and reused for 10 minutes.
+A full scan queries every advertised server and takes tens of seconds, which would make
+searching unusable if it ran on every keystroke.
+
+### From the command line
 
 ```powershell
 ZandronumWatcher.exe --list          # only servers with players
 ZandronumWatcher.exe --list --all    # include empty ones
-```
-
-Then pin what you want:
-
-```powershell
 ZandronumWatcher.exe --pin 148.72.141.8:10718 104.243.34.46:10703
 ZandronumWatcher.exe --unpin 104.243.34.46:10703
 ```
 
-Both commands edit `servers.json` in place.
+`--pin` and `--unpin` edit `servers.json` in place.
 
 ## Configuration
 
@@ -136,6 +152,11 @@ refresh.
 addresses in `198.18.0.0/15`; connecting to a hard-coded literal IP bypasses the proxy
 and fails.
 
+**A full scan is too slow to run on demand.** Querying every advertised server takes tens
+of seconds (the list is 600+ entries, half of them dead). The add dialog therefore caches
+the scan on disk and searches it in memory; rescanning is a deliberate action, not
+something that happens per keystroke.
+
 **Per-server overrides beat one global switch.** Pinned servers are not interchangeable:
 one is a weekly game night where every join matters, another is a busy public server where
 only the first player is interesting. A single global setting forces the noisiest server to
@@ -169,7 +190,7 @@ src/
     Alerts/                  OccupancyTracker, OccupancyChange, IAlertSink
     Configuration/           WatchConfig (pinned list + per-server overrides)
     Services/                ZandronumClient, ServerWatcher, OccupancyMonitor,
-                             ServerDirectory (--list support)
+                             ServerDirectory, ServerDirectoryCache
   ZandronumWatcher.App/      WPF overlay + toasts + headless host
 tests/
   ZandronumWatcher.Core.Tests/   xUnit, incl. a fake UDP server for end-to-end tests

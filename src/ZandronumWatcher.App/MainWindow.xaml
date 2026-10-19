@@ -89,6 +89,7 @@
         </StackPanel>
 
         <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button Style="{StaticResource IconButton}" Content="＋" ToolTip="Add or remove servers" Click="OnAddServerClick" />
           <Button Style="{StaticResource IconButton}" Content="⟳" ToolTip="Refresh now" Click="OnRefreshClick" />
           <Button x:Name="PinButton" Style="{StaticResource IconButton}" Content="📌" ToolTip="Toggle always on top" Click="OnPinClick" />
           <Button Style="{StaticResource IconButton}" Content="✕" ToolTip="Exit" Click="OnCloseClick" />
@@ -98,7 +99,17 @@
       <!-- Rows -->
       <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="560"
                     HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
         <ItemsControl x:Name="RowsControl" ItemsSource="{Binding Rows}">
+          <ItemsControl.Resources>
+            <Style TargetType="ItemsControl">
+              <Style.Triggers>
+                <Trigger Property="HasItems" Value="False">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+              </Style.Triggers>
+            </Style>
+          </ItemsControl.Resources>
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:ServerRowViewModel}">
               <StackPanel>
@@ -157,6 +168,16 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <Button Style="{StaticResource RowButton}" Click="OnAddServerClick"
+                Visibility="{Binding EmptyStateVisibility}" Margin="0,2">
+          <StackPanel>
+            <TextBlock Text="No servers pinned yet" Foreground="{StaticResource TextPrimary}" FontSize="12" />
+            <TextBlock Text="Click to search the public server list"
+                       Style="{StaticResource MonoText}" Margin="0,2,0,0" />
+          </StackPanel>
+        </Button>
+        </StackPanel>
       </ScrollViewer>
 
       <!-- Footer -->

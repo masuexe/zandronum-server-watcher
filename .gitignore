@@ -32,6 +32,7 @@ packages/
 
 # Local, machine-specific config
 servers.local.json
+servers.cache.json
 *.local.json
 
 # Python (the tools/ and _ref/ scripts)

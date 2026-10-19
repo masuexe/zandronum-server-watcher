@@ -58,16 +58,34 @@ public sealed class OverlayViewModel : ObservableObject, IAsyncDisposable
 
     public string ConfigPath => WatchConfig.DefaultPath;
 
+    /// <summary>Shows the "nothing pinned yet" prompt only when the list is empty.</summary>
+    public Visibility EmptyStateVisibility =>
+        Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Re-reads the config from disk, e.g. after the add-server dialog changed it.</summary>
+    public void ReloadFromDisk()
+    {
+        var fresh = WatchConfig.Load();
+        _config.Servers = fresh.Servers;
+        _config.Notifications = fresh.Notifications;
+        _config.PollSeconds = fresh.PollSeconds;
+
+        OnPropertyChanged(nameof(EmptyStateVisibility));
+        Reload();
+    }
+
     /// <summary>Rebuilds rows from the current config and restarts polling.</summary>
     public async void Reload()
     {
         await DisposeMonitorAsync();
 
         Rows.Clear();
+        OnPropertyChanged(nameof(EmptyStateVisibility));
+
         var endpoints = _config.ParseEndpoints();
         if (endpoints.Count == 0)
         {
-            StatusLine = "no servers configured — edit servers.json";
+            StatusLine = "no servers pinned — click ＋ to add one";
             return;
         }
 
@@ -92,6 +110,7 @@ public sealed class OverlayViewModel : ObservableObject, IAsyncDisposable
         _monitor.AlertRaised += OnAlertRaised;
         _monitor.Start();
 
+        OnPropertyChanged(nameof(EmptyStateVisibility));
         UpdateStatusLine();
     }
 
