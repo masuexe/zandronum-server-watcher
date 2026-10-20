@@ -36,6 +36,7 @@ internal sealed class TrayHost : IDisposable
         _source.AddHook(WndProc);
 
         _icon = new TrayIconService(_source.Handle, "Zandronum Watcher");
+        Diagnostics.Log($"tray host created, registered={_icon.IsRegistered}");
         _icon.Activated += (_, _) => ToggleRequested?.Invoke(this, EventArgs.Empty);
         _icon.ContextMenuRequested += (_, _) => ShowMenu();
     }
@@ -108,7 +109,15 @@ internal sealed class TrayHost : IDisposable
             return IntPtr.Zero;
         }
 
-        if (_icon.TryHandleMessage(msg, wParam))
+        // Explorer restarted and dropped every tray icon; put ours back.
+        if ((uint)msg == _icon.TaskbarCreatedMessage)
+        {
+            _icon.ReRegister();
+            handled = true;
+            return IntPtr.Zero;
+        }
+
+        if (_icon.TryHandleMessage(msg, wParam, lParam))
         {
             handled = true;
         }

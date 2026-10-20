@@ -173,6 +173,14 @@ refresh.
 addresses in `198.18.0.0/15`; connecting to a hard-coded literal IP bypasses the proxy
 and fails.
 
+**Tray callbacks arrive in two incompatible layouts.** Legacy `NOTIFYICON_VERSION_0`
+puts the mouse message in `wParam`; version 4 puts it in `lParam` and the coordinates in
+`wParam`. Windows 11 sent the version-4 shape before `NIM_SETVERSION` was ever called, so
+reading `wParam` alone meant the icon accepted clicks and did nothing — the bug looked like
+"the tray icon is dead". Version 4 also emits the legacy `WM_LBUTTONUP` *alongside*
+`NIN_SELECT`, so acting on both toggles the overlay twice per click and cancels itself out.
+The handler now detects which layout is in use and acts on exactly one message per click.
+
 **A timeout is not "offline".** Zandronum servers stay completely silent while their
 query-ignore window is open, so a cold start right after another query gets no answer at all.
 That used to render as a red "timed out", which reads like the server is dead. It now shows a
