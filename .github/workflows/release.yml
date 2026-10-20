@@ -30,30 +30,65 @@ jobs:
       - name: Test
         run: dotnet test -c Release --no-restore
 
-      # Self-contained on purpose: someone who downloads a release should not have to
-      # install the .NET desktop runtime first.
-      - name: Publish
-        run: dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained true -o dist
+      # Two flavours. Standalone needs nothing installed; the framework-dependent build
+      # is ~40 MB smaller but needs the .NET 10 Desktop Runtime. Shipping only one of
+      # them either wastes the download or wastes the user's time.
+      - name: Publish standalone
+        run: dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained true -o dist/standalone
+
+      - name: Publish framework-dependent
+        run: dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained false -o dist/lite
 
       - name: Package
         shell: pwsh
         run: |
           $tag = "${{ github.event.inputs.tag || github.ref_name }}"
-          Compress-Archive -Path dist/* -DestinationPath "ZandronumWatcher-$tag-win-x64.zip"
+          $standalone = "ZandronumWatcher-$tag-win-x64-standalone.zip"
+          $lite = "ZandronumWatcher-$tag-win-x64-requires-dotnet10.zip"
 
-      - name: Create release
+          # People who grab the small package and then hit a runtime error should not have
+          # to guess what happened.
+          $readme = @(
+            "Zandronum Watcher $tag - framework-dependent build",
+            "",
+            "This package does NOT include the .NET runtime.",
+            "It needs the .NET 10 Desktop Runtime (x64):",
+            "  https://dotnet.microsoft.com/download/dotnet/10.0/runtime/desktop",
+            "",
+            "If Windows reports that .NET is missing, install that first.",
+            "To avoid installing anything, download the '-standalone' package instead."
+          )
+          Set-Content -Path dist/lite/README-FIRST.txt -Value $readme -Encoding UTF8
+
+          Compress-Archive -Path dist/standalone/* -DestinationPath $standalone
+          Compress-Archive -Path dist/lite/* -DestinationPath $lite
+          "standalone: $([math]::Round((Get-Item $standalone).Length/1MB,1)) MB"
+          "lite:       $([math]::Round((Get-Item $lite).Length/1MB,1)) MB"
+
+      - name: Publish release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "${{ github.event.inputs.tag || github.ref_name }}"
-          $file = "ZandronumWatcher-$tag-win-x64.zip"
-          $args = @(
-            'release', 'create', $tag,
-            '--title', "Zandronum Watcher $tag",
-            '--notes-file', '.github/release-notes.md'
-          )
-          # 0.x is an early, still-changing version: mark it as a pre-release.
-          if ($tag -match '^v0\.') { $args += '--prerelease' }
-          $args += $file
-          & gh @args
+          $standalone = "ZandronumWatcher-$tag-win-x64-standalone.zip"
+          $lite = "ZandronumWatcher-$tag-win-x64-requires-dotnet10.zip"
+          $prerelease = $tag -match '^v0\.'
+
+          # Re-running for a tag that already has a release must update it rather than fail,
+          # so a bad asset can be replaced without deleting the tag.
+          & gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            $args = @('release', 'edit', $tag, '--title', "Zandronum Watcher $tag", '--notes-file', '.github/release-notes.md')
+            if ($prerelease) { $args += '--prerelease' }
+            & gh @args
+            & gh release upload $tag $standalone $lite --clobber
+            # Drop the single-flavour asset from earlier releases of the same tag.
+            & gh release delete-asset $tag "ZandronumWatcher-$tag-win-x64.zip" --yes *> $null
+          } else {
+            $args = @('release', 'create', $tag, '--title', "Zandronum Watcher $tag", '--notes-file', '.github/release-notes.md')
+            if ($prerelease) { $args += '--prerelease' }
+            $args += $standalone
+            $args += $lite
+            & gh @args
+          }

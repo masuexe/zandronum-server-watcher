@@ -14,15 +14,29 @@ stop refreshing a server browser waiting for a game to start.
 - Imports the custom-server list you already maintain in Doomseeker
 - Also runs headless (`--headless`), writing alerts to a log file
 
+### Which download?
+
+| File | Size | Needs |
+|---|---|---|
+| `...-win-x64-standalone.zip` | ~69 MB | nothing — unzip and run |
+| `...-win-x64-requires-dotnet10.zip` | ~7 MB | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime/desktop) |
+
+The small package is **ten times smaller** because it leaves out the runtime, so it is worth
+taking if you already have .NET 10 installed. If you are not sure, take the standalone one —
+it cannot fail for a missing runtime.
+
 ### Install
 
-No installer. Unzip anywhere and run `ZandronumWatcher.exe`. This build is
-self-contained, so no .NET runtime is required.
+No installer. Unzip anywhere and run `ZandronumWatcher.exe`.
 
 Settings, logs and the pinned list are stored in `%LOCALAPPDATA%\ZandronumWatcher\`, so the
 folder can be moved or replaced without losing anything.
 
 **Requires Windows 10 (1809) or later, 64-bit.**
+
+> **Windows will warn you the first time.** The executable is not code-signed, so SmartScreen
+> shows "Windows protected your PC". Click **More info → Run anyway**. Code signing costs
+> money per year and this is a hobby project, so the warning stays until that changes.
 
 ### First run
 
