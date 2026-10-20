@@ -46,6 +46,11 @@ Run the tests:
 dotnet test
 ```
 
+VS Code launch and build tasks are checked in under `.vscode/`. Because the app is a tray
+app that keeps running, **exit it from the tray menu before rebuilding** — otherwise the
+build fails with "file is being used by another process" when it tries to overwrite the
+executable.
+
 Publish:
 
 ```powershell
