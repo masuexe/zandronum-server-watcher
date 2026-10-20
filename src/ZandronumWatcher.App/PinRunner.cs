@@ -22,14 +22,12 @@ internal static class PinRunner
                 continue;
             }
 
-            var existing = config.Servers.FirstOrDefault(
-                s => ServerEndpoint.TryParse(s.Address, out var e) && e == endpoint);
+            var pinnedNow = PinList.Contains(config.Servers, endpoint);
 
             if (remove)
             {
-                if (existing is not null)
+                if (PinList.Unpin(config.Servers, endpoint))
                 {
-                    config.Servers.Remove(existing);
                     changed++;
                     Console.WriteLine($"unpinned {endpoint}");
                 }
@@ -38,13 +36,13 @@ internal static class PinRunner
                     Console.WriteLine($"{endpoint} was not pinned");
                 }
             }
-            else if (existing is not null)
+            else if (pinnedNow)
             {
                 Console.WriteLine($"{endpoint} is already pinned");
             }
             else
             {
-                config.Servers.Add(new ServerEntry { Address = endpoint.ToString() });
+                PinList.Pin(config.Servers, endpoint);
                 changed++;
                 Console.WriteLine($"pinned {endpoint}");
             }

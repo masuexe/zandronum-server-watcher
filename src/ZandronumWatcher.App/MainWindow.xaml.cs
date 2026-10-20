@@ -14,6 +14,8 @@ public partial class MainWindow : Window
     private const int WS_EX_NOACTIVATE = 0x08000000;
 
     private readonly OverlayViewModel _viewModel;
+    private TrayHost? _tray;
+    private bool _allowClose;
 
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -39,6 +41,8 @@ public partial class MainWindow : Window
         var handle = new WindowInteropHelper(this).Handle;
         var style = GetWindowLong(handle, GWL_EXSTYLE);
         SetWindowLong(handle, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
+
+        _tray = TrayBootstrap.CreateFor(this);
     }
 
     private void OnDragAreaMouseDown(object sender, MouseButtonEventArgs e)
@@ -71,7 +75,27 @@ public partial class MainWindow : Window
             : (System.Windows.Media.Brush)FindResource("TextMuted");
     }
 
-    private void OnAddServerClick(object sender, RoutedEventArgs e)
+    private void OnAddServerClick(object sender, RoutedEventArgs e) => OpenAddServerDialog();
+
+    /// <summary>The ✕ button hides to the tray instead of exiting; the tray menu exits.</summary>
+    private void OnCloseClick(object sender, RoutedEventArgs e) => HideToTray();
+
+    /// <summary>Lets the window close for real (used by the tray "Exit" command).</summary>
+    public void AllowClose() => _allowClose = true;
+
+    public void HideToTray() => Hide();
+
+    public void RestoreFromTray()
+    {
+        Show();
+        // The window is WS_EX_NOACTIVATE, so showing it does not steal focus from a game —
+        // which is intentional, but means it can end up behind other windows.
+        Topmost = false;
+        Topmost = _viewModel.IsPinned;
+        Activate();
+    }
+
+    public void OpenAddServerDialog()
     {
         var dialog = new AddServerWindow
         {
@@ -85,8 +109,6 @@ public partial class MainWindow : Window
 
         dialog.ShowDialog();
     }
-
-    private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
 
     private void RestorePosition()
     {
@@ -117,6 +139,17 @@ public partial class MainWindow : Window
 
     private async void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // Closing the window from the tray menu really exits; the ✕ button just hides.
+        if (!_allowClose)
+        {
+            e.Cancel = true;
+            HideToTray();
+            return;
+        }
+
+        _tray?.Dispose();
+        _tray = null;
+
         var settings = Properties.Settings.Default;
         settings.WindowLeft = Left;
         settings.WindowTop = Top;

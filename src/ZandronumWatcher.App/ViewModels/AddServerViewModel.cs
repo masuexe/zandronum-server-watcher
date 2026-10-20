@@ -78,16 +78,21 @@ public sealed class AddServerViewModel : ObservableObject
     /// <summary>Toggles a row's pin state and persists it.</summary>
     public void TogglePin(ServerCandidateViewModel candidate)
     {
-        if (candidate.IsPinned)
-        {
-            Unpin(candidate.Endpoint);
-        }
-        else
+        // Flip to the state we are about to apply. Deriving it from the current value with
+        // `is false` would always produce true when IsPinned was already true, which made
+        // unpinning impossible: the row stayed pinned and the next click tried to pin it again.
+        var shouldPin = !candidate.IsPinned;
+
+        if (shouldPin)
         {
             Pin(candidate.Endpoint);
         }
+        else
+        {
+            Unpin(candidate.Endpoint);
+        }
 
-        candidate.IsPinned = candidate.IsPinned is false;
+        candidate.IsPinned = shouldPin;
         UpdateStatus();
         PinsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -235,24 +240,64 @@ public sealed class AddServerViewModel : ObservableObject
 
     private bool Pin(ServerEndpoint endpoint)
     {
-        if (_config.Servers.Any(s => ServerEndpoint.TryParse(s.Address, out var e) && e == endpoint))
+        if (!PinList.Pin(_config.Servers, endpoint))
         {
             return false;
         }
 
-        _config.Servers.Add(new ServerEntry { Address = endpoint.ToString() });
         _config.Save(_configPath);
         return true;
     }
 
+    /// <summary>
+    /// Pins every row currently visible. Filtering first and pinning in bulk is the common
+    /// case ("pin all survival servers"), not clicking 20 individual plus buttons.
+    /// </summary>
+    public int PinAllVisible()
+    {
+        var pinned = 0;
+        foreach (var candidate in Results.Where(c => !c.IsPinned).ToList())
+        {
+            if (Pin(candidate.Endpoint))
+            {
+                candidate.IsPinned = true;
+                pinned++;
+            }
+        }
+
+        if (pinned > 0)
+        {
+            UpdateStatus();
+            PinsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        return pinned;
+    }
+
+    /// <summary>Removes every currently pinned server, whatever the filter shows.</summary>
+    public int UnpinAll()
+    {
+        var unpinned = 0;
+        foreach (var candidate in _all.Where(c => c.IsPinned).ToList())
+        {
+            Unpin(candidate.Endpoint);
+            candidate.IsPinned = false;
+            unpinned++;
+        }
+
+        if (unpinned > 0)
+        {
+            UpdateStatus();
+            PinsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        return unpinned;
+    }
+
     private void Unpin(ServerEndpoint endpoint)
     {
-        var existing = _config.Servers.FirstOrDefault(
-            s => ServerEndpoint.TryParse(s.Address, out var e) && e == endpoint);
-
-        if (existing is not null)
+        if (PinList.Unpin(_config.Servers, endpoint))
         {
-            _config.Servers.Remove(existing);
             _config.Save(_configPath);
         }
     }

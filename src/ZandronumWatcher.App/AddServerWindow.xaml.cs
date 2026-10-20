@@ -45,6 +45,23 @@ public partial class AddServerWindow : Window
         }
     }
 
+    private void OnPinAllClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.PinAllVisible() > 0)
+        {
+            PinsChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void OnUnpinAllClick(object sender, RoutedEventArgs e)
+    {
+        var count = _viewModel.UnpinAll();
+        if (count > 0)
+        {
+            PinsChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     private void OnDoneClick(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)

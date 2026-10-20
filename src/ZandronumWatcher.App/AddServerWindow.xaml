@@ -118,9 +118,21 @@
       </Grid>
     </Border>
 
-    <!-- Status -->
-    <TextBlock Grid.Row="2" Text="{Binding StatusLine}" Foreground="{StaticResource Muted}"
-               FontSize="11" Margin="2,10,0,6" TextTrimming="CharacterEllipsis" />
+    <!-- Status + bulk actions -->
+    <Grid Grid.Row="2" Margin="2,10,0,6">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <TextBlock Grid.Column="0" Text="{Binding StatusLine}" Foreground="{StaticResource Muted}"
+                 FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal">
+        <Button Content="Pin all shown" Click="OnPinAllClick" Margin="6,0,0,0"
+                ToolTip="Pin every server currently listed" />
+        <Button Content="Unpin all" Click="OnUnpinAllClick" Margin="6,0,0,0"
+                ToolTip="Remove every pinned server" />
+      </StackPanel>
+    </Grid>
 
     <!-- Results -->
     <Border Grid.Row="3" Background="{StaticResource Surface}" CornerRadius="6"
@@ -175,7 +187,7 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <TextBlock Grid.Column="0" Foreground="#FF6A727C" FontSize="11" VerticalAlignment="Center"
-                 Text="Changes are saved immediately. Close this window to see them in the overlay." />
+                 Text="Changes are saved immediately. Click ✓ on a row to unpin it." />
       <Button Grid.Column="1" Content="Done" Click="OnDoneClick" />
     </Grid>
   </Grid>

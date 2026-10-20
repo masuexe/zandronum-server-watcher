@@ -23,8 +23,9 @@ so you stop refreshing a server browser waiting for a game to start.
 - ✅ Add-server dialog with search over a cached master scan
 - ✅ `--list` / `--pin` / `--unpin` for the same thing from a shell
 - ✅ Always-on-top transparent overlay, out of Alt+Tab
+- ✅ Tray icon: close hides to tray, so the watcher keeps running
 - ✅ Headless mode writing alerts to a log file
-- ✅ 72 tests, including end-to-end UDP tests against a fake server
+- ✅ 78 tests, including end-to-end UDP tests against a fake server
 - ⬜ Tray icon and a settings UI
 
 ## Requirements
@@ -152,6 +153,12 @@ refresh.
 addresses in `198.18.0.0/15`; connecting to a hard-coded literal IP bypasses the proxy
 and fails.
 
+**Pin state is one function, not three.** The dialog, the CLI and the overlay all edit the
+same list, so the rules live in `PinList`. That paid off immediately: the dialog's
+row toggle had been computing the new state as `IsPinned is false`, which is always
+`false` for a pinned row — clicking ✓ silently did nothing. `PinListTests` now pins that
+behaviour down.
+
 **A full scan is too slow to run on demand.** Querying every advertised server takes tens
 of seconds (the list is 600+ entries, half of them dead). The add dialog therefore caches
 the scan on disk and searches it in memory; rescanning is a deliberate action, not
@@ -170,6 +177,15 @@ no output at all.
 **Unpackaged apps need a Start Menu shortcut to show toasts.** Without a shortcut
 carrying an AppUserModelID, `ToastNotificationManager` reports success and silently
 drops the notification. `AppRegistration` creates that shortcut on startup.
+
+## Tray and closing behaviour
+
+The `✕` button **hides the overlay to the tray** rather than quitting — the watcher has to
+stay running to keep sending notifications. The tray icon's menu has:
+
+- **Show overlay** — also triggered by double-clicking the icon
+- **Add or remove servers…**
+- **Exit** — the only way to actually quit
 
 ## Headless mode
 
