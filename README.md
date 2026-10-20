@@ -20,12 +20,12 @@ so you stop refreshing a server browser waiting for a game to start.
 - ✅ Human vs. bot counting
 - ✅ Occupancy alerts with offline debounce, delivered as toasts
 - ✅ Per-server alert overrides for pinned servers
-- ✅ Add-server dialog with search over a cached master scan
+- ✅ Add-server dialog with search over a cached master scan, plus `--import-doomseeker`
 - ✅ `--list` / `--pin` / `--unpin` for the same thing from a shell
 - ✅ Always-on-top transparent overlay, out of Alt+Tab
 - ✅ Tray icon: close hides to tray, so the watcher keeps running
 - ✅ Headless mode writing alerts to a log file
-- ✅ 78 tests, including end-to-end UDP tests against a fake server
+- ✅ 87 tests, including end-to-end UDP tests against a fake server
 - ⬜ Tray icon and a settings UI
 
 ## Requirements
@@ -79,6 +79,21 @@ joining surface first.
 The scan is cached in `servers.cache.json` next to the config and reused for 10 minutes.
 A full scan queries every advertised server and takes tens of seconds, which would make
 searching unusable if it ran on every keystroke.
+
+### Importing from Doomseeker
+
+Doomseeker keeps the servers you added by hand in
+`%LOCALAPPDATA%\Doomseeker\doomseeker.ini` (not inside the exe). Copy them over with:
+
+```powershell
+ZandronumWatcher.exe --import-doomseeker --dry-run   # preview
+ZandronumWatcher.exe --import-doomseeker             # apply
+```
+
+or press **Import from Doomseeker** in the add dialog. Only Zandronum entries are imported —
+the launcher protocol differs per engine, so pulling in Odamex or Q-Zandronum rows would
+just produce servers that never respond. Existing pins are left alone and duplicates are
+skipped, so the command is safe to re-run whenever your Doomseeker list changes.
 
 ### From the command line
 
@@ -174,6 +189,14 @@ same list, so the rules live in `PinList`. That paid off immediately: the dialog
 row toggle had been computing the new state as `IsPinned is false`, which is always
 `false` for a pinned row — clicking ✓ silently did nothing. `PinListTests` now pins that
 behaviour down.
+
+**An ItemsControl does not virtualise.** The add dialog originally listed 600+ servers in a
+plain `ItemsControl`, which realises every row: about ten thousand live visuals, memory
+climbing ~60 MB, and a UI thread that could not keep up with the mouse. Measured with the
+dialog open: **1517 ms average** message latency (3152 ms worst case) and a full CPU core
+burning. Switching to a virtualising `ListBox` brought that to **0.79 ms average / 61 ms
+p95** and dropped the extra CPU to near zero. Search is also debounced by 150 ms so typing
+does not reset the bound list once per keystroke.
 
 **A full scan is too slow to run on demand.** Querying every advertised server takes tens
 of seconds (the list is 600+ entries, half of them dead). The add dialog therefore caches

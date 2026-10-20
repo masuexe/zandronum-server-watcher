@@ -118,66 +118,93 @@
       </Grid>
     </Border>
 
-    <!-- Status + bulk actions -->
-    <Grid Grid.Row="2" Margin="2,10,0,6">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
-      <TextBlock Grid.Column="0" Text="{Binding StatusLine}" Foreground="{StaticResource Muted}"
-                 FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-      <StackPanel Grid.Column="1" Orientation="Horizontal">
+    <!-- Status, then bulk actions on their own line so the status text is not truncated -->
+    <StackPanel Grid.Row="2" Margin="2,10,0,6">
+      <TextBlock Text="{Binding StatusLine}" Foreground="{StaticResource Muted}"
+                 FontSize="11" TextTrimming="CharacterEllipsis" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
         <Button Content="Pin all shown" Click="OnPinAllClick" Margin="6,0,0,0"
                 ToolTip="Pin every server currently listed" />
         <Button Content="Unpin all" Click="OnUnpinAllClick" Margin="6,0,0,0"
                 ToolTip="Remove every pinned server" />
+        <Button Content="Import from Doomseeker" Click="OnImportDoomseekerClick" Margin="6,0,0,0"
+                ToolTip="Copy the custom servers you added in Doomseeker" />
       </StackPanel>
-    </Grid>
+    </StackPanel>
 
     <!-- Results -->
+    <!-- A ListBox, not an ItemsControl: ItemsControl does not virtualise, and with 600+
+         servers that means ~10k live visuals and a UI thread that cannot keep up with the
+         mouse. ListBox virtualises by default, so only the visible rows exist. -->
     <Border Grid.Row="3" Background="{StaticResource Surface}" CornerRadius="6"
             BorderBrush="{StaticResource BorderSoft}" BorderThickness="1">
-      <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <ItemsControl x:Name="ResultsList" ItemsSource="{Binding Results}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="{x:Type vm:ServerCandidateViewModel}">
-              <Border x:Name="RowBorder" Padding="10,7" Background="Transparent">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
+      <ListBox x:Name="ResultsList"
+               ItemsSource="{Binding Results}"
+               Background="Transparent"
+               BorderThickness="0"
+               Foreground="#FFEDEDED"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               VirtualizingPanel.IsVirtualizing="True"
+               VirtualizingPanel.VirtualizationMode="Recycling"
+               VirtualizingPanel.ScrollUnit="Item">
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                  <Border x:Name="RowBorder" Background="{TemplateBinding Background}"
+                          Padding="{TemplateBinding Padding}">
+                    <ContentPresenter />
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="RowBorder" Property="Background" Value="#FF232830" />
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                      <Setter TargetName="RowBorder" Property="Background" Value="#FF232830" />
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ListBox.ItemContainerStyle>
 
-                  <StackPanel Grid.Column="0">
-                    <TextBlock Text="{Binding Title}" FontSize="12" TextTrimming="CharacterEllipsis" />
-                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                      <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="11" />
-                      <TextBlock Text="  ·  " Foreground="#FF3A4149" FontSize="11" />
-                      <TextBlock Text="{Binding Address}" Foreground="#FF6A727C" FontSize="11"
-                                 FontFamily="Consolas, Cascadia Mono" />
-                    </StackPanel>
-                  </StackPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:ServerCandidateViewModel}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
 
-                  <TextBlock Grid.Column="1" Text="{Binding SlotText}" Foreground="{Binding SlotBrush}"
-                             FontFamily="Consolas, Cascadia Mono" FontSize="11"
-                             VerticalAlignment="Center" Margin="10,0" MinWidth="42" TextAlignment="Right" />
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="{Binding Title}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                  <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="11" />
+                  <TextBlock Text="  ·  " Foreground="#FF3A4149" FontSize="11" />
+                  <TextBlock Text="{Binding Address}" Foreground="#FF6A727C" FontSize="11"
+                             FontFamily="Consolas, Cascadia Mono" />
+                </StackPanel>
+              </StackPanel>
 
-                  <Button Grid.Column="2" Style="{StaticResource PinButton}"
-                          Content="{Binding PinGlyph}" Foreground="{Binding PinBrush}"
-                          ToolTip="{Binding PinTooltip}"
-                          Click="OnTogglePinClick" Tag="{Binding}" />
-                </Grid>
-              </Border>
-              <DataTemplate.Triggers>
-                <Trigger SourceName="RowBorder" Property="IsMouseOver" Value="True">
-                  <Setter TargetName="RowBorder" Property="Background" Value="#FF232830" />
-                </Trigger>
-              </DataTemplate.Triggers>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </ScrollViewer>
+              <TextBlock Grid.Column="1" Text="{Binding SlotText}" Foreground="{Binding SlotBrush}"
+                         FontFamily="Consolas, Cascadia Mono" FontSize="11"
+                         VerticalAlignment="Center" Margin="10,0" MinWidth="42" TextAlignment="Right" />
+
+              <Button Grid.Column="2" Style="{StaticResource PinButton}"
+                      Content="{Binding PinGlyph}" Foreground="{Binding PinBrush}"
+                      ToolTip="{Binding PinTooltip}"
+                      Click="OnTogglePinClick" Tag="{Binding}" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
     </Border>
 
     <!-- Footer -->

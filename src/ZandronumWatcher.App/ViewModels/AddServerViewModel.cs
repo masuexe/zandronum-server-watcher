@@ -1,7 +1,7 @@
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using ZandronumWatcher.Core.Configuration;
+using ZandronumWatcher.Core.Import;
 using ZandronumWatcher.Core.Models;
 using ZandronumWatcher.Core.Services;
 
@@ -14,6 +14,8 @@ public sealed class AddServerViewModel : ObservableObject
     private readonly WatchConfig _config;
     private readonly ServerDirectoryCache _cache;
     private readonly List<ServerCandidateViewModel> _all = [];
+    private IReadOnlyList<ServerCandidateViewModel> _results = [];
+    private System.Windows.Threading.DispatcherTimer? _searchDebounce;
 
     private string _searchText = "";
     private string _manualAddress = "";
@@ -25,12 +27,23 @@ public sealed class AddServerViewModel : ObservableObject
         _configPath = configPath ?? WatchConfig.DefaultPath;
         _config = WatchConfig.Load(_configPath);
         _cache = new ServerDirectoryCache(ServerDirectoryCache.DefaultPathFor(_configPath));
-        Results = [];
 
         LoadCachedScan();
     }
 
-    public ObservableCollection<ServerCandidateViewModel> Results { get; }
+    /// <summary>
+    /// The filtered list. Replaced wholesale on each change so WPF gets a single reset instead
+    /// of one collection-changed notification per row.
+    /// </summary>
+    public IReadOnlyList<ServerCandidateViewModel> Results
+    {
+        get => _results;
+        private set
+        {
+            _results = value;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>Raised whenever the pinned set changes, so the overlay can rebuild.</summary>
     public event EventHandler? PinsChanged;
@@ -42,7 +55,7 @@ public sealed class AddServerViewModel : ObservableObject
         {
             if (SetProperty(ref _searchText, value))
             {
-                ApplyFilter();
+                ScheduleFilter();
             }
         }
     }
@@ -206,6 +219,30 @@ public sealed class AddServerViewModel : ObservableObject
         ApplyFilter();
     }
 
+    /// <summary>
+    /// Coalesces rapid keystrokes into one filter pass. Filtering itself is cheap, but each
+    /// pass resets the list the ListBox is bound to, and doing that per character makes typing
+    /// feel heavy even with virtualisation.
+    /// </summary>
+    private void ScheduleFilter()
+    {
+        _searchDebounce ??= new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(150),
+        };
+
+        _searchDebounce.Stop();
+        _searchDebounce.Tick += OnDebounceTick;
+        _searchDebounce.Start();
+    }
+
+    private void OnDebounceTick(object? sender, EventArgs e)
+    {
+        _searchDebounce!.Stop();
+        _searchDebounce.Tick -= OnDebounceTick;
+        ApplyFilter();
+    }
+
     private void ApplyFilter()
     {
         var term = SearchText.Trim();
@@ -226,11 +263,7 @@ public sealed class AddServerViewModel : ObservableObject
                 : string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase);
         });
 
-        Results.Clear();
-        foreach (var match in matches)
-        {
-            Results.Add(match);
-        }
+        Results = matches;
 
         if (term.Length > 0 && matches.Count == 0)
         {
@@ -272,6 +305,88 @@ public sealed class AddServerViewModel : ObservableObject
         }
 
         return pinned;
+    }
+
+    /// <summary>
+    /// Copies Doomseeker's custom-server list into the pinned list.
+    /// </summary>
+    /// <returns>A message describing what happened, suitable for the status line.</returns>
+    public string ImportFromDoomseeker()
+    {
+        var iniPath = DoomseekerImporter.FindConfig();
+        if (iniPath is null)
+        {
+            return "Doomseeker config not found";
+        }
+
+        DoomseekerImportResult result;
+        try
+        {
+            result = DoomseekerImporter.Parse(File.ReadAllText(iniPath));
+        }
+        catch (IOException ex)
+        {
+            return $"could not read {iniPath}: {ex.Message}";
+        }
+
+        if (result.Servers.Count == 0)
+        {
+            return "no Zandronum servers in Doomseeker's custom list";
+        }
+
+        var added = 0;
+        var already = 0;
+        foreach (var server in result.Servers)
+        {
+            if (Pin(server))
+            {
+                added++;
+            }
+            else
+            {
+                already++;
+            }
+        }
+
+        RefreshPinFlags();
+
+        if (added > 0)
+        {
+            PinsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        var summary = $"imported {added} from Doomseeker ({already} already pinned)";
+        if (result.SkippedEngines.Count > 0)
+        {
+            summary += $"; skipped {string.Join(", ", result.SkippedEngines)}";
+        }
+
+        // Servers pinned from Doomseeker may not exist in the cached scan at all, in which case
+        // no row can show a check mark for them. Say so instead of leaving the user to wonder
+        // why the count does not match what they see.
+        var known = _all.Select(c => c.Endpoint).ToHashSet();
+        if (result.Servers.Any(s => !known.Contains(s)))
+        {
+            summary += "; rescan to list them here (the overlay shows them already)";
+        }
+
+        StatusLine = summary;
+        return summary;
+    }
+
+    /// <summary>Re-reads the config so row check marks match what is actually pinned.</summary>
+    private void RefreshPinFlags()
+    {
+        var fresh = WatchConfig.Load(_configPath);
+        _config.Servers = fresh.Servers;
+
+        var pinned = _config.ParseEndpoints().ToHashSet();
+        foreach (var candidate in _all)
+        {
+            candidate.IsPinned = pinned.Contains(candidate.Endpoint);
+        }
+
+        ApplyFilter();
     }
 
     /// <summary>Removes every currently pinned server, whatever the filter shows.</summary>

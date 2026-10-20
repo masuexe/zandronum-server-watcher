@@ -62,6 +62,11 @@ public partial class AddServerWindow : Window
         }
     }
 
+    private void OnImportDoomseekerClick(object sender, RoutedEventArgs e)
+    {
+        _viewModel.ImportFromDoomseeker();
+    }
+
     private void OnDoneClick(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)

@@ -43,6 +43,14 @@ public partial class App : Application
             return;
         }
 
+        if (e.Args.Any(a => a.Equals("--import-doomseeker", StringComparison.OrdinalIgnoreCase)))
+        {
+            ConsoleHost.Attach();
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Shutdown(RunImport(e.Args));
+            return;
+        }
+
         if (TryGetPinArguments(e.Args, out var pinAddresses, out var unpin))
         {
             ConsoleHost.Attach();
@@ -72,6 +80,20 @@ public partial class App : Application
         var window = new MainWindow();
         MainWindow = window;
         window.Show();
+    }
+
+    private static int RunImport(string[] args)
+    {
+        var dryRun = args.Any(a => a.Equals("--dry-run", StringComparison.OrdinalIgnoreCase));
+
+        // A positional argument after the flag is the ini path; anything starting with --
+        // belongs to another option.
+        var index = Array.FindIndex(args, a => a.Equals("--import-doomseeker", StringComparison.OrdinalIgnoreCase));
+        var iniPath = index >= 0 && index + 1 < args.Length && !args[index + 1].StartsWith("--", StringComparison.Ordinal)
+            ? args[index + 1]
+            : null;
+
+        return DoomseekerImportRunner.Run(GetConfigPath(args) ?? WatchConfig.DefaultPath, iniPath, dryRun);
     }
 
     /// <summary>--autostart [on|off|status]: read or change the launch-at-login setting.</summary>
