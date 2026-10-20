@@ -119,7 +119,7 @@ public sealed class ServerWatcher : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            return ServerStatus.Offline(endpoint, "timed out");
+            return ServerStatus.Offline(endpoint, "no reply", timedOut: true);
         }
         catch (Exception ex)
         {

@@ -27,6 +27,16 @@ internal static class TrayBootstrap
             window.OpenAddServerDialog();
         });
 
+        tray.AutostartRequested += (_, _) =>
+        {
+            var enabled = AutostartService.Set(!AutostartService.IsEnabled());
+            if (!enabled && AutostartService.IsEnabled())
+            {
+                MessageBox.Show("Could not change the startup setting.", "Zandronum Watcher",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        };
+
         tray.ExitRequested += (_, _) => Dispatcher(window).BeginInvoke(() =>
         {
             window.AllowClose();

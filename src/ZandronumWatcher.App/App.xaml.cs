@@ -35,6 +35,14 @@ public partial class App : Application
         // Windows will deliver toast notifications.
         Notifications.AppRegistration.Register();
 
+        if (e.Args.Any(a => a.Equals("--autostart", StringComparison.OrdinalIgnoreCase)))
+        {
+            ConsoleHost.Attach();
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Shutdown(RunAutostart(e.Args));
+            return;
+        }
+
         if (TryGetPinArguments(e.Args, out var pinAddresses, out var unpin))
         {
             ConsoleHost.Attach();
@@ -64,6 +72,31 @@ public partial class App : Application
         var window = new MainWindow();
         MainWindow = window;
         window.Show();
+    }
+
+    /// <summary>--autostart [on|off|status]: read or change the launch-at-login setting.</summary>
+    private static int RunAutostart(string[] args)
+    {
+        var index = Array.FindIndex(args, a => a.Equals("--autostart", StringComparison.OrdinalIgnoreCase));
+        var mode = index >= 0 && index + 1 < args.Length ? args[index + 1].ToLowerInvariant() : "status";
+
+        switch (mode)
+        {
+            case "on":
+                Console.WriteLine(AutostartService.Set(true)
+                    ? "autostart enabled"
+                    : "failed to enable autostart");
+                return AutostartService.IsEnabled() ? 0 : 1;
+
+            case "off":
+                AutostartService.Set(false);
+                Console.WriteLine(AutostartService.IsEnabled() ? "failed to disable" : "autostart disabled");
+                return AutostartService.IsEnabled() ? 1 : 0;
+
+            default:
+                Console.WriteLine(AutostartService.IsEnabled() ? "enabled" : "disabled");
+                return 0;
+        }
     }
 
     private static bool TryGetPinArguments(string[] args, out List<string> addresses, out bool unpin)

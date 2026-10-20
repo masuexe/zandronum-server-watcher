@@ -158,6 +158,17 @@ refresh.
 addresses in `198.18.0.0/15`; connecting to a hard-coded literal IP bypasses the proxy
 and fails.
 
+**A timeout is not "offline".** Zandronum servers stay completely silent while their
+query-ignore window is open, so a cold start right after another query gets no answer at all.
+That used to render as a red "timed out", which reads like the server is dead. It now shows a
+neutral "no reply — retrying", because the next poll almost always succeeds.
+
+**A WinExe has no stdout by default.** The CLI modes call `AttachConsole`, but doing that
+unconditionally broke output redirection: `--list > out.txt` produced an empty file and still
+exited 0, because attaching replaced the redirect. `ConsoleHost` now inspects the existing
+standard handle and only attaches when there is genuinely no console, and forces UTF-8 when
+output is redirected (the default ANSI code page turned `·` into mojibake).
+
 **Pin state is one function, not three.** The dialog, the CLI and the overlay all edit the
 same list, so the rules live in `PinList`. That paid off immediately: the dialog's
 row toggle had been computing the new state as `IsPinned is false`, which is always
@@ -190,7 +201,19 @@ stay running to keep sending notifications. The tray icon's menu has:
 
 - **Show overlay** — also triggered by double-clicking the icon
 - **Add or remove servers…**
+- **Start with Windows** — toggles a per-user Run entry, no admin rights needed
 - **Exit** — the only way to actually quit
+
+![Tray menu](docs/tray-menu.png)
+
+The autostart toggle matters more than it looks: without it, a reboot silently turns
+notifications off until you remember to launch the app again. Same thing from a shell:
+
+```powershell
+ZandronumWatcher.exe --autostart on
+ZandronumWatcher.exe --autostart status
+ZandronumWatcher.exe --autostart off
+```
 
 ## Headless mode
 

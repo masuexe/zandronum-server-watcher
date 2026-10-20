@@ -92,7 +92,9 @@ public sealed class ServerRowViewModel : ObservableObject
                 return string.Join("  ·  ", parts);
             }
 
-            return _status.Error ?? "offline";
+            return _status.TimedOut
+                ? "no reply — retrying"
+                : _status.Error ?? "offline";
         }
     }
 
@@ -100,7 +102,9 @@ public sealed class ServerRowViewModel : ObservableObject
 
     public Brush StatusBrush => _status.Info is not null
         ? OnlineBrush
-        : _status.Error == "waiting for first refresh" ? PendingBrush : OfflineBrush;
+        : _status.TimedOut || _status.Error == "waiting for first refresh"
+            ? PendingBrush
+            : OfflineBrush;
 
     public IReadOnlyList<PlayerInfo> Players => _status.Info?.Players ?? [];
 

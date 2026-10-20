@@ -49,11 +49,16 @@ internal sealed class TrayHost : IDisposable
     /// <summary>Raised when the user picks "Add or remove servers…".</summary>
     public event EventHandler? ManageServersRequested;
 
+    /// <summary>Raised when the user toggles "Start with Windows".</summary>
+    public event EventHandler? AutostartRequested;
+
     public void SetTooltip(string text) => _icon.SetTooltip(text);
 
     private void ShowMenu()
     {
-        _menu ??= BuildMenu();
+        // Rebuilt each time so the "Start with Windows" check mark reflects the registry
+        // rather than a stale snapshot from when the menu was first opened.
+        _menu = BuildMenu();
         _menu.IsOpen = true;
     }
 
@@ -69,6 +74,13 @@ internal sealed class TrayHost : IDisposable
 
         menu.Items.Add(MenuItem("Show overlay", () => ToggleRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(MenuItem("Add or remove servers…", () => ManageServersRequested?.Invoke(this, EventArgs.Empty)));
+        menu.Items.Add(new Separator());
+
+        var startup = MenuItem(
+            AutostartService.IsEnabled() ? "✓  Start with Windows" : "Start with Windows",
+            () => AutostartRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(startup);
+
         menu.Items.Add(new Separator());
         menu.Items.Add(MenuItem("Exit", () => ExitRequested?.Invoke(this, EventArgs.Empty)));
         return menu;
