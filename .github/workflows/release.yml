@@ -1,0 +1,59 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, e.g. v0.1.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Test
+        run: dotnet test -c Release --no-restore
+
+      # Self-contained on purpose: someone who downloads a release should not have to
+      # install the .NET desktop runtime first.
+      - name: Publish
+        run: dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained true -o dist
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.inputs.tag || github.ref_name }}"
+          Compress-Archive -Path dist/* -DestinationPath "ZandronumWatcher-$tag-win-x64.zip"
+
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.event.inputs.tag || github.ref_name }}"
+          $file = "ZandronumWatcher-$tag-win-x64.zip"
+          $args = @(
+            'release', 'create', $tag,
+            '--title', "Zandronum Watcher $tag",
+            '--notes-file', '.github/release-notes.md'
+          )
+          # 0.x is an early, still-changing version: mark it as a pre-release.
+          if ($tag -match '^v0\.') { $args += '--prerelease' }
+          $args += $file
+          & gh @args
