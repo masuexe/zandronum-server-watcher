@@ -98,7 +98,10 @@ public sealed class TrayIconService : IDisposable
 
         _data.szTip = text.Length >= 128 ? text[..127] : text;
         _data.uFlags = NifTip;
-        Shell_NotifyIcon(NimModify, ref _data);
+        if (!Shell_NotifyIcon(NimModify, ref _data))
+        {
+            Diagnostics.Log($"NIM_MODIFY failed err={Marshal.GetLastWin32Error()}");
+        }
     }
 
     /// <summary>Re-adds the icon after Explorer restarted and dropped every tray icon.</summary>

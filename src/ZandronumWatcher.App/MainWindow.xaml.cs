@@ -33,6 +33,16 @@ public partial class MainWindow : Window
         RestorePosition();
         SourceInitialized += OnSourceInitialized;
         Closing += OnClosing;
+
+        // Keep the tray tooltip in step with the status line; it is the only thing a user
+        // sees without opening the overlay. SetTooltip existed but nothing called it.
+        _viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(OverlayViewModel.StatusLine))
+            {
+                UpdateTrayTooltip();
+            }
+        };
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -43,6 +53,18 @@ public partial class MainWindow : Window
         SetWindowLong(handle, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
 
         _tray = TrayBootstrap.CreateFor(this);
+        UpdateTrayTooltip();
+    }
+
+    private void UpdateTrayTooltip()
+    {
+        var status = string.IsNullOrWhiteSpace(_viewModel.StatusLine)
+            ? $"Zandronum Watcher {App.ProductVersion}"
+            : _viewModel.StatusLine;
+
+        // The shell caps the tooltip at 127 characters.
+        var text = $"{status}  ·  v{App.ProductVersion}";
+        _tray?.SetTooltip(text.Length >= 127 ? text[..126] : text);
     }
 
     private void OnDragAreaMouseDown(object sender, MouseButtonEventArgs e)

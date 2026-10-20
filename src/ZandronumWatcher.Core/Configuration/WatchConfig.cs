@@ -6,7 +6,7 @@ using ZandronumWatcher.Core.Models;
 
 namespace ZandronumWatcher.Core.Configuration;
 
-/// <summary>User-editable list of pinned servers, stored next to the executable.</summary>
+/// <summary>User-editable list of pinned servers, stored in per-user application data.</summary>
 public sealed class WatchConfig
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -30,8 +30,52 @@ public sealed class WatchConfig
     [JsonPropertyName("notifications")]
     public NotificationConfig Notifications { get; set; } = new();
 
-    public static string DefaultPath =>
+    /// <summary>
+    /// Where the pinned list lives. Per-user application data, not next to the executable:
+    /// `bin\` is wiped by a clean/rebuild, which would silently take the list with it.
+    /// </summary>
+    public static string DefaultPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ZandronumWatcher",
+        "servers.json");
+
+    /// <summary>Where earlier versions kept the list, next to the executable.</summary>
+    public static string LegacyPath =>
         Path.Combine(AppContext.BaseDirectory, "servers.json");
+
+    /// <summary>
+    /// Copies a config from the old exe-adjacent location on first run.
+    /// </summary>
+    /// <returns>True when a config was migrated.</returns>
+    public static bool MigrateFromLegacyLocation()
+    {
+        var target = DefaultPath;
+        if (File.Exists(target))
+        {
+            return false;
+        }
+
+        var legacy = LegacyPath;
+        if (!File.Exists(legacy))
+        {
+            return false;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(legacy, target);
+
+            // Rename rather than delete: the pins are user data, and a mistake here would be
+            // unrecoverable.
+            File.Move(legacy, legacy + ".migrated", overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     public static WatchConfig Load(string? path = null)
     {

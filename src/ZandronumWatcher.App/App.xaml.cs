@@ -9,6 +9,12 @@ public partial class App : Application
 {
     private const string MutexName = @"Local\ZandronumWatcher.SingleInstance";
 
+    /// <summary>Marketing version, e.g. "0.1.0".</summary>
+    public static string ProductVersion =>
+        typeof(App).Assembly.GetName().Version is { } v
+            ? $"{v.Major}.{v.Minor}.{v.Build}"
+            : "unknown";
+
     private Mutex? _mutex;
 
     /// <summary>Set when the process runs without a window.</summary>
@@ -34,6 +40,30 @@ public partial class App : Application
         // Unpackaged desktop apps need a Start Menu shortcut with an AppUserModelID before
         // Windows will deliver toast notifications.
         Notifications.AppRegistration.Register();
+
+        // Older builds kept servers.json next to the executable; bring it across once.
+        if (WatchConfig.MigrateFromLegacyLocation())
+        {
+            Diagnostics.Log("migrated servers.json from the application folder");
+        }
+
+        if (e.Args.Any(a => a.Equals("--version", StringComparison.OrdinalIgnoreCase)))
+        {
+            ConsoleHost.Attach();
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Console.WriteLine(ProductVersion);
+            Shutdown(0);
+            return;
+        }
+
+        if (e.Args.Any(a => a.Equals("--help", StringComparison.OrdinalIgnoreCase)))
+        {
+            ConsoleHost.Attach();
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            PrintHelp();
+            Shutdown(0);
+            return;
+        }
 
         if (e.Args.Any(a => a.Equals("--autostart", StringComparison.OrdinalIgnoreCase)))
         {
@@ -80,6 +110,23 @@ public partial class App : Application
         var window = new MainWindow();
         MainWindow = window;
         window.Show();
+    }
+
+    private static void PrintHelp()
+    {
+        Console.WriteLine($"Zandronum Watcher {ProductVersion}");
+        Console.WriteLine();
+        Console.WriteLine("Usage:");
+        Console.WriteLine("  ZandronumWatcher                       run the overlay");
+        Console.WriteLine("  ZandronumWatcher --headless            no window, alerts to a log file");
+        Console.WriteLine("  ZandronumWatcher --list [--all]        list reachable servers");
+        Console.WriteLine("  ZandronumWatcher --pin <host:port>...  add servers to the pinned list");
+        Console.WriteLine("  ZandronumWatcher --unpin <host:port>...remove servers");
+        Console.WriteLine("  ZandronumWatcher --import-doomseeker   copy Doomseeker's custom servers");
+        Console.WriteLine("  ZandronumWatcher --autostart on|off|status");
+        Console.WriteLine("  ZandronumWatcher --version             print the version");
+        Console.WriteLine();
+        Console.WriteLine($"Config: {WatchConfig.DefaultPath}");
     }
 
     private static int RunImport(string[] args)

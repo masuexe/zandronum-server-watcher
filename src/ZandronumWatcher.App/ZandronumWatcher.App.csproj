@@ -22,8 +22,4 @@
     <ProjectReference Include="..\ZandronumWatcher.Core\ZandronumWatcher.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="servers.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

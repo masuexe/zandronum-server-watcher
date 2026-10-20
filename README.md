@@ -33,6 +33,30 @@ so you stop refreshing a server browser waiting for a game to start.
 - Windows 10 (build 17763) or 11
 - .NET 10 SDK (pinned in `global.json`)
 
+## Versioning
+
+`0.1.0` — usable, but the config format may still change. It becomes `1.0.0` once the
+format has survived real use and the tool is handed to other people.
+
+```powershell
+ZandronumWatcher.exe --version
+ZandronumWatcher.exe --help
+```
+
+## Installing
+
+There is deliberately no installer. The app is one folder with no registry footprint beyond
+the optional autostart entry, so shipping is:
+
+```powershell
+dotnet publish src/ZandronumWatcher.App -c Release -r win-x64 --self-contained false -o publish
+```
+
+then zip `publish\` and unpack it anywhere. Settings, logs and the pinned list all live in
+`%LOCALAPPDATA%\ZandronumWatcher\`, so the folder can be moved or replaced freely.
+The only thing an installer would add is a Start Menu shortcut and an uninstall entry —
+and without code signing it would not silence SmartScreen either.
+
 ## Build and run
 
 ```powershell
@@ -108,7 +132,11 @@ ZandronumWatcher.exe --unpin 104.243.34.46:10703
 
 ## Configuration
 
-`servers.json` next to the executable:
+The pinned list lives in `%LOCALAPPDATA%\ZandronumWatcher\servers.json`.
+Earlier versions kept it next to the executable; on first run it is copied across and the
+old file is renamed to `servers.json.migrated`, so upgrading does not lose anything.
+
+```json
 
 ```json
 {
